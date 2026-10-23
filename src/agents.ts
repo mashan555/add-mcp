@@ -23,10 +23,7 @@ function getKimiCodeHome(): string {
   return process.env.KIMI_CODE_HOME || join(home, ".kimi-code");
 }
 
-/**
- * Junie's home directory, honoring a `JUNIE_HOME` override lazily (at call
- * time) and defaulting to `~/.junie`, which the JetBrains IDE plugin reads.
- */
+/** The JetBrains IDE plugin always reads `~/.junie`; only Junie CLI honors `JUNIE_HOME`. */
 function getJunieHome(): string {
   return process.env.JUNIE_HOME || join(home, ".junie");
 }
@@ -882,11 +879,6 @@ function resolveKimiCodeConfigPath(
   return join(getKimiCodeHome(), "mcp.json");
 }
 
-/**
- * Resolves Junie's config path: the project-local `.junie/mcp/mcp.json` for a
- * local install, or `$JUNIE_HOME/mcp/mcp.json` for a global one so a
- * `JUNIE_HOME` override is honored at call time.
- */
 function resolveJunieConfigPath(
   agent: AgentConfig,
   options: { local: boolean; cwd: string },
