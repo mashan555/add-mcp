@@ -1,8 +1,8 @@
 # Changelog
 
-## [2.5.0] - 2026-09-08
+## [2.5.0] - 2026-10-23
 
-- add `junie` (JetBrains) support with project installs to `.junie/mcp/mcp.json` and global installs to `$JUNIE_HOME/mcp/mcp.json` (default `~/.junie/mcp/mcp.json`), using Junie's `mcpServers` key. Stdio uses `command`/`args`/`env` and remote servers use `url` + optional `headers` with no `type` field (Junie infers the transport), matching the shape both Junie CLI and the Junie JetBrains IDE plugin read. Remote headers are rejected on a cleartext `http://` URL so credentials are never sent in the clear; over `https://`, headers (including `Authorization`) are written as-is, which the Junie CLI reads as a bearer token while the JetBrains IDE plugin ignores an inline token.
+- add `junie` (JetBrains) support for Junie CLI and the Junie JetBrains IDE plugin, with project installs to `.junie/mcp/mcp.json` and global installs to `$JUNIE_HOME/mcp/mcp.json` (default `~/.junie/mcp/mcp.json`). `--timeout` maps to Junie's `timeout` (1000 to 3600000 milliseconds). Server names outside `[a-zA-Z0-9_-]` are refused because Junie rejects them.
 
 ## [2.4.1] - 2026-09-29
 

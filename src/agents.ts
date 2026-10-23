@@ -451,41 +451,49 @@ function transformKiroCliConfig(
   return remoteConfig;
 }
 
+const JUNIE_SERVER_NAME = /^[a-zA-Z0-9_-]+$/;
+const JUNIE_MIN_TIMEOUT_MS = 1_000;
+const JUNIE_MAX_TIMEOUT_MS = 3_600_000;
+
 /**
  * Junie (Junie CLI and the JetBrains IDE plugin) infers a server's transport
- * from which fields are present — `command` for stdio, `url` for remote — and
- * does not document a `type`/`transport` field, so none is emitted. Stdio uses
- * command / args / env.
- *
- * Remote headers are guarded against cleartext exposure: Junie refuses to send
- * headers to a cleartext `http://` endpoint (CWE-319). Over an `https://` URL all
- * headers pass through unchanged, including `Authorization` — the Junie CLI reads
- * a bearer token from that header, while the JetBrains IDE plugin simply ignores
- * an inline token, so the shared `mcp.json` stays valid for both.
+ * from `command` vs `url`, so no `type` is emitted. Junie rejects server names
+ * outside `[a-zA-Z0-9_-]`, and ignores a `timeout` outside 1s–1h in favor of
+ * its 60-second default, so both fail the install instead.
  * See https://junie.jetbrains.com/docs/junie-cli-mcp-configuration.html.
  */
 function transformJunieConfig(
-  _serverName: string,
+  serverName: string,
   config: McpServerConfig,
 ): unknown {
-  if (!config.url) {
-    return buildStandardLocal(config);
+  if (!JUNIE_SERVER_NAME.test(serverName)) {
+    throw new Error(
+      `Junie server names may only contain letters, digits, "_", and "-". Pick another name with --name instead of "${serverName}".`,
+    );
+  }
+  const timeout = config.timeout;
+  if (
+    typeof timeout === "number" &&
+    (timeout < JUNIE_MIN_TIMEOUT_MS || timeout > JUNIE_MAX_TIMEOUT_MS)
+  ) {
+    throw new Error(
+      `Junie accepts a timeout between ${JUNIE_MIN_TIMEOUT_MS} and ${JUNIE_MAX_TIMEOUT_MS} milliseconds, got ${timeout}.`,
+    );
   }
 
-  const headers = config.headers;
-  if (headers && Object.keys(headers).length > 0) {
-    if (config.url.toLowerCase().startsWith("http://")) {
-      throw new Error(
-        "Junie refuses to send headers to a cleartext http:// server. Use an https:// URL so credentials are not transmitted in the clear.",
-      );
+  let entry: Record<string, unknown>;
+  if (config.url) {
+    entry = { url: config.url };
+    if (config.headers && Object.keys(config.headers).length > 0) {
+      entry.headers = config.headers;
     }
+  } else {
+    entry = buildStandardLocal(config);
   }
-
-  const remote: Record<string, unknown> = { url: config.url };
-  if (headers && Object.keys(headers).length > 0) {
-    remote.headers = headers;
+  if (typeof timeout === "number") {
+    entry.timeout = timeout;
   }
-  return remote;
+  return entry;
 }
 
 /**
@@ -1131,15 +1139,13 @@ export const agents: Record<AgentType, AgentConfig> = {
   junie: {
     name: "junie",
     displayName: "Junie",
-    // Junie CLI and the JetBrains IDE plugin read the same mcp.json shape.
-    // See https://junie.jetbrains.com/docs/junie-cli-mcp-configuration.html.
     configPath: join(getJunieHome(), "mcp", "mcp.json"),
     localConfigPath: ".junie/mcp/mcp.json",
     projectDetectPaths: [".junie"],
     configKey: "mcpServers",
     format: "json",
     supportedTransports: ["stdio", "http", "sse"],
-    supportedFields: [],
+    supportedFields: ["timeout"],
     detectGlobalInstall: async () => {
       return existsSync(getJunieHome());
     },

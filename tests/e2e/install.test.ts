@@ -1684,9 +1684,9 @@ test("E2E: Junie keeps an Authorization header over https", () => {
   });
 });
 
-test("E2E: Junie rejects headers on a cleartext http:// server", () => {
+test("E2E: Junie keeps headers on a local http:// server", () => {
   const tempDir = createTempDir();
-  const parsed = parseSource("http://mcp.example.com/mcp");
+  const parsed = parseSource("http://localhost:3000/mcp");
   const config = buildServerConfig(parsed, {
     headers: { "X-Workspace": "demo" },
   });
@@ -1696,12 +1696,19 @@ test("E2E: Junie rejects headers on a cleartext http:// server", () => {
     cwd: tempDir,
   });
 
-  assert.strictEqual(result.success, false);
-  assert.match(result.error ?? "", /cleartext http:\/\//);
-  assert.strictEqual(
-    existsSync(join(tempDir, ".junie", "mcp", "mcp.json")),
-    false,
+  assert.strictEqual(result.success, true);
+
+  const savedConfig = readJsonConfig(
+    join(tempDir, ".junie", "mcp", "mcp.json"),
   );
+  const mcpServers = savedConfig.mcpServers as Record<
+    string,
+    Record<string, unknown>
+  >;
+  const serverConfig = mcpServers.example;
+  assert.ok(serverConfig);
+  assert.strictEqual(serverConfig.url, "http://localhost:3000/mcp");
+  assert.deepStrictEqual(serverConfig.headers, { "X-Workspace": "demo" });
 });
 
 test("E2E: Install local server to Junie (stdio)", () => {
